@@ -820,3 +820,5 @@ TODO: Something about how having only one pool server is great cause you can mul
 ==Acknowledgments==
 
 Thanks to (in alphabetical order by last name) Jan Capek, Ivy Evans, James Hilliard, Greg Maxwell, Pavel Moravec, and Alex Petrov for several rounds of review and feedback. Thanks as well to Jonathan Cross, erikarvstedt on GitHub, Jonas Nick, Jimmy Song, and several others for copy edits and text suggestions.
+
+DONT MERGE THIS
