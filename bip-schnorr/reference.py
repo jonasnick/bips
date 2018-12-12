@@ -68,7 +68,10 @@ def schnorr_sign(msg, seckey):
     e = int_from_bytes(hash_sha256(bytes_from_int(R[0]) + bytes_from_point(point_mul(G, seckey)) + msg)) % n
     return bytes_from_int(R[0]) + bytes_from_int((k + e * seckey) % n)
 
-def schnorr_verify(msg, pubkey, sig):
+# The compute_gen argument allows using a different generator than the
+# secp256k1 generator "G". It MUST be left to the default unless schnorr_verify
+# is used in weak generator tests.
+def schnorr_verify(msg, pubkey, sig, compute_generator=lambda r, P, e: G):
     if len(msg) != 32:
         raise ValueError('The message must be a 32-byte array.')
     if len(pubkey) != 33:
@@ -83,7 +86,9 @@ def schnorr_verify(msg, pubkey, sig):
     if (r >= p or s >= n):
         return False
     e = int_from_bytes(hash_sha256(sig[0:32] + bytes_from_point(P) + msg)) % n
-    R = point_add(point_mul(G, s), point_mul(P, n - e))
+    # Choose custom generator if non-default compute_gen function is used.
+    gen = compute_generator(r, P, e)
+    R = point_add(point_mul(gen, s), point_mul(P, n - e))
     if R is None or jacobi(R[1]) != 1 or R[0] != r:
         return False
     return True
@@ -93,6 +98,15 @@ def schnorr_verify(msg, pubkey, sig):
 #
 import csv
 
+# Calls schnorr_verify using a weak generator equal to R + e*pubkey. This is
+# useful to test conditions which are otherwise computationally very hard to
+# create.
+def schnorr_verify_weak_gen(msg, pubkey, sig):
+    def compute_weak_generator(r, P, e):
+        R0 = [r, pow((pow(r, 3, p) + 7) % p, (p + 1) // 4, p)]
+        return point_add(R0, point_mul(P, e))
+    return schnorr_verify(msg, pubkey, sig, compute_gen=compute_weak_generator)
+
 def test_vectors():
     all_passed = True
     with open('test-vectors.csv', newline='') as csvfile:
@@ -100,11 +114,12 @@ def test_vectors():
         reader.__next__()
         i = 1
         for row in reader:
-            (seckey, pubkey, msg, sig, result, comment) = row
+            (seckey, pubkey, msg, sig, result, weak_gen_result, comment) = row
             pubkey = bytes.fromhex(pubkey)
             msg = bytes.fromhex(msg)
             sig = bytes.fromhex(sig)
             result = result == 'TRUE'
+            weak_gen_result = None if weak_gen_result == '' else weak_gen_result == 'TRUE'
             print('\nTest vector #%-3i: ' % i)
             if seckey != '':
                 seckey = int(seckey, 16)
@@ -126,6 +141,17 @@ def test_vectors():
                 if comment:
                     print('   Comment:', comment)
                 all_passed = False
+            if weak_gen_result != None:
+                weak_gen_result_actual = schnorr_verify_weak_gen(msg, pubkey, sig)
+                print(' ~ weak generator mode ~')
+                if weak_gen_result == weak_gen_result_actual:
+                    print('   * Passed verification test.')
+                else:
+                    print('     Excepted verification result:', weak_gen_result)
+                    print('       Actual verification result:', weak_gen_result_actual)
+                    if comment:
+                        print('     Comment:', comment)
+                    all_passed = False
             i = i + 1
     print()
     if all_passed:

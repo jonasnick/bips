@@ -181,6 +181,9 @@ While the traditional Schnorr blind signatures are vulnerable to [http://www.ens
 == Test vectors and reference code ==
 
 For development and testing purposes, we provide a [[bip-schnorr/test-vectors.csv|collection of test vectors in CSV format]] and a naive but highly inefficient and non-constant time [[bip-schnorr/reference.py|pure Python 3.7 reference implementation of the signing and verification algorithm]].
+The test vectors have a column `weak generator verification result` which allows testing conditions with a weak generator which are otherwise very hard to create.
+If the value in the column is set then the verification algorithm is supposed to run with the generator ''G'' set to ''R + e*P''.
+
 The reference implementation is for demonstration purposes only and not to be used in production environments.
 
 == Footnotes ==
