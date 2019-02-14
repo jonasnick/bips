@@ -98,14 +98,13 @@ def test_vectors():
     with open('test-vectors.csv', newline='') as csvfile:
         reader = csv.reader(csvfile)
         reader.__next__()
-        i = 1
         for row in reader:
-            (seckey, pubkey, msg, sig, result, comment) = row
+            (index, seckey, pubkey, msg, sig, result, comment) = row
             pubkey = bytes.fromhex(pubkey)
             msg = bytes.fromhex(msg)
             sig = bytes.fromhex(sig)
             result = result == 'TRUE'
-            print('\nTest vector #%-3i: ' % i)
+            print('\nTest vector #%-3i: ' % int(index))
             if seckey != '':
                 seckey = int(seckey, 16)
                 sig_actual = schnorr_sign(msg, seckey)
@@ -126,7 +125,6 @@ def test_vectors():
                 if comment:
                     print('   Comment:', comment)
                 all_passed = False
-            i = i + 1
     print()
     if all_passed:
         print('All test vectors passed.')
