@@ -1,3 +1,13 @@
+<pre>
+  BIP: ?
+  Title: Schnorr Signatures
+  Author: Pieter Wuille <pieter.wuille@gmail.com>
+  Status: Draft
+  Type: Informational
+  Created: ?
+  License: BSD-2-Clause
+</pre>
+
 ==Introduction==
 
 ===Abstract===
