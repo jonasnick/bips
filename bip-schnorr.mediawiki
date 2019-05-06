@@ -124,7 +124,7 @@ Input:
 * The signatures ''sig<sub>1..u</sub>'': ''u'' 64-byte arrays
 
 All provided signatures are valid with overwhelming probability if and only if the algorithm below does not fail.
-* Generate ''u-1'' random integers ''a<sub>2...u</sub>'' in the range ''1...n-1''. These can either be generated deterministically using a [https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator CSPRNG] seeded by a cryptographic hash (e.g., SHA256) of all inputs of the algorithm, or be randomly generated independently for each run of the batch verification algorithm.
+* Generate ''u-1'' random integers ''a<sub>2...u</sub>'' in the range ''1...n-1''. They are generated deterministically using a [https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator CSPRNG] seeded by a cryptographic hash of all inputs of the algorithm, i.e. ''seed = seed_hash(pk<sub>1</sub>..pk<sub>u</sub> || m<sub>1</sub>..m<sub>u</sub> || sig<sub>1</sub>..sig<sub>u</sub> )''. A safe choice is to instantiate ''seed_hash'' with SHA256 and use [https://tools.ietf.org/html/rfc8439 ChaCha20] with key ''seed'' as a CSPRNG to generate 256-bit integers, skipping integers not in the range ''1...n-1''.
 * For ''i = 1 .. u'':
 ** Let ''P<sub>i</sub> = point(pk<sub>i</sub>)''; fail if ''point(pk<sub>i</sub>)'' fails.
 ** Let ''r = int(sig<sub>i</sub>[0:32])''; fail if ''r &ge; p''.
