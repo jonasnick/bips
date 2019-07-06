@@ -55,18 +55,29 @@ def hash_sha256(b):
 def jacobi(x):
     return pow(x, (p - 1) // 2, p)
 
-def schnorr_sign(msg, seckey):
+def schnorr_sign_internal(msg, seckey, P):
     if len(msg) != 32:
         raise ValueError('The message must be a 32-byte array.')
-    if not (1 <= seckey <= n - 1):
-        raise ValueError('The secret key must be an integer in the range 1..n-1.')
     k0 = int_from_bytes(hash_sha256(bytes_from_int(seckey) + msg)) % n
     if k0 == 0:
         raise RuntimeError('Failure. This happens only with negligible probability.')
     R = point_mul(G, k0)
     k = n - k0 if (jacobi(R[1]) != 1) else k0
-    e = int_from_bytes(hash_sha256(bytes_from_int(R[0]) + bytes_from_point(point_mul(G, seckey)) + msg)) % n
+    e = int_from_bytes(hash_sha256(bytes_from_int(R[0]) + P + msg)) % n
     return bytes_from_int(R[0]) + bytes_from_int((k + e * seckey) % n)
+
+def schnorr_sign(msg, seckey):
+    if not (1 <= seckey <= n - 1):
+        raise ValueError('The secret key must be an integer in the range 1..n-1.')
+    P = bytes_from_point(point_mul(G, seckey))
+    return schnorr_sign_internal(msg, seckey, P)
+
+def schnorr_sign32(msg, seckey0):
+    if not (1 <= seckey0 <= n - 1):
+        raise ValueError('The secret key must be an integer in the range 1..n-1.')
+    P = bytes_from_point(point_mul(G, seckey0))
+    seckey = n - seckey0 if P[0:1] != b'\x02' else seckey0
+    return schnorr_sign_internal(msg, seckey, b'\x02' + P[1:])
 
 def schnorr_verify(msg, pubkey, sig):
     if len(msg) != 32:
@@ -88,14 +99,19 @@ def schnorr_verify(msg, pubkey, sig):
         return False
     return True
 
+def schnorr_verify32(msg, pubkey, sig):
+    if len(pubkey) != 32:
+        raise ValueError('The public key must be a 32-byte array.')
+    return schnorr_verify(msg, b'\x02' + pubkey, sig)
+
 #
 # The following code is only used to verify the test vectors.
 #
 import csv
 
-def test_vectors():
+def test_vectors(filename, sign_function, verify_function):
     all_passed = True
-    with open('test-vectors.csv', newline='') as csvfile:
+    with open(filename, newline='') as csvfile:
         reader = csv.reader(csvfile)
         reader.__next__()
         for row in reader:
@@ -104,27 +120,35 @@ def test_vectors():
             msg = bytes.fromhex(msg)
             sig = bytes.fromhex(sig)
             result = result == 'TRUE'
-            print('\nTest vector #%-3i: ' % int(index))
+            print('\n  Test vector %s #%-3i: ' % (filename, int(index)))
             if seckey != '':
                 seckey = int(seckey, 16)
-                sig_actual = schnorr_sign(msg, seckey)
+                sig_actual = sign_function(msg, seckey)
                 if sig == sig_actual:
-                    print(' * Passed signing test.')
+                    print('   * Passed signing test.')
                 else:
-                    print(' * Failed signing test.')
-                    print('   Excepted signature:', sig.hex())
-                    print('     Actual signature:', sig_actual.hex())
+                    print('   * Failed signing test.')
+                    print('     Expected signature:', sig.hex())
+                    print('       Actual signature:', sig_actual.hex())
                     all_passed = False
-            result_actual = schnorr_verify(msg, pubkey, sig)
+            result_actual = verify_function(msg, pubkey, sig)
             if result == result_actual:
-                print(' * Passed verification test.')
+                print('   * Passed verification test.')
             else:
-                print(' * Failed verification test.')
-                print('   Excepted verification result:', result)
-                print('     Actual verification result:', result_actual)
+                print('   * Failed verification test.')
+                print('     Expected verification result:', result)
+                print('       Actual verification result:', result_actual)
                 if comment:
-                    print('   Comment:', comment)
+                    print('     Comment:', comment)
                 all_passed = False
+    return all_passed
+
+def run_tests():
+    print('Testing regular bip-schnorr scheme')
+    all_passed = test_vectors('test-vectors.csv', schnorr_sign, schnorr_verify)
+    print('\n\nTesting bip-schnorr32 scheme')
+    all_passed = all_passed and test_vectors('test-vectors32.csv', schnorr_sign32, schnorr_verify32)
+
     print()
     if all_passed:
         print('All test vectors passed.')
@@ -132,5 +156,6 @@ def test_vectors():
         print('Some test vectors failed.')
     return all_passed
 
+
 if __name__ == '__main__':
-    test_vectors()
+    run_tests()
