@@ -35,6 +35,7 @@ propose a new standard, a number of improvements not specific to Schnorr signatu
 made:
 
 * '''Signature encoding''': Instead of [https://en.wikipedia.org/wiki/X.690#DER_encoding DER]-encoding for signatures (which are variable size, and up to 72 bytes), we can use a simple fixed 64-byte format.
+* '''Public key encoding''': An optional modification of the signing algorithm allows to encode a public key as 32 instead of 33 bytes.
 * '''Batch verification''': The specific formulation of ECDSA signatures that is standardized cannot be verified more efficiently in batch compared to individually, unless additional witness data is added. Changing the signature scheme offers an opportunity to avoid this.
 
 [[File:bip-schnorr/speedup-batch.png|frame|This graph shows the ratio between the time it takes to verify ''n'' signatures individually and to verify a batch of ''n'' signatures. This ratio goes up logarithmically with the number of signatures, or in other words: the total time to verify ''n'' signatures grows with ''O(n / log n)''.]]
@@ -75,6 +76,8 @@ for elliptic curve operations). The two other options require a possibly
 expensive conversion to affine coordinates first. This would even be the case if the sign or oddness were explicitly coded (option 2 in the previous design choice). We therefore choose option 3.
 
 '''Final scheme''' As a result, our final scheme ends up using signatures ''(r,s)'' where ''r'' is the X coordinate of a point ''R'' on the curve whose Y coordinate is a quadratic residue, and which satisfies ''sG = R + H(r || P || m)P''.
+
+'''Optional smaller encoding of the public key''' In order to allow encoding the public key as 32 bytes instead of 33 bytes, our scheme optionally allows signing for the public key with even Y coordinate. In particular, for a given secret key the signing algorithm checks if the corresponding public key has an even Y coordinate. If that's not the case, secret and public key are negated (which results in a public key with an even Y coordinate). The signer can then send only the last 32 bytes of the compressed public key along with the signature to the verifier. After receiving the 32 byte public key part, the verifier adds the byte ''0x02'' to the beginning which allows verification of the signature.
 
 === Specification ===
 
@@ -147,15 +150,19 @@ All provided signatures are valid with overwhelming probability if and only if t
 ==== Signing ====
 
 Input:
-* The secret key ''d'': an integer in the range ''1..n-1''.
+* The secret key ''d''': an integer in the range ''1..n-1''.
 * The message ''m'': a 32-byte array
+* The flag ''sign_even'' indicating whether the signature will be valid for the public key with even Y coordinate: a single byte.
 
 To sign ''m'' for public key ''dG'':
+* Let ''P' = bytes(dG)''
+* Let ''d = d''' if ''sign_even = 0'' or ''P'[0:1] == 0x02'', otherwise let ''d = -d'''.
+* Let ''P = P''' if ''sign_even = 0'', otherwise let ''P = 0x02 || P'[1:33]''.
 * Let ''k' = int(hash(bytes(d) || m)) mod n''<ref>Note that in general, taking the output of a hash function modulo the curve order will produce an unacceptably biased result. However, for the secp256k1 curve, the order is sufficiently close to ''2<sup>256</sup>'' that this bias is not observable (''1 - n / 2<sup>256</sup>'' is around ''1.27 * 2<sup>-128</sup>'').</ref>.
 * Fail if ''k' = 0''.
 * Let ''R = k'G''.
 * Let ''k = k' '' if ''jacobi(y(R)) = 1'', otherwise let ''k = n - k' ''.
-* Let ''e = int(hash(bytes(x(R)) || bytes(dG) || m)) mod n''.
+* Let ''e = int(hash(bytes(x(R)) || P || m)) mod n''.
 * The signature is ''bytes(x(R)) || bytes((k + ed) mod n)''.
 
 '''Above deterministic derivation of ''R'' is designed specifically for this signing algorithm and may not be secure when used in other signature schemes.'''

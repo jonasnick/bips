@@ -55,17 +55,20 @@ def hash_sha256(b):
 def jacobi(x):
     return pow(x, (p - 1) // 2, p)
 
-def schnorr_sign(msg, seckey):
+def schnorr_sign(msg, seckey0, sign_even = 0):
     if len(msg) != 32:
         raise ValueError('The message must be a 32-byte array.')
-    if not (1 <= seckey <= n - 1):
+    if not (1 <= seckey0 <= n - 1):
         raise ValueError('The secret key must be an integer in the range 1..n-1.')
+    P0 = bytes_from_point(point_mul(G, seckey0))
+    seckey = seckey0 if sign_even == 0 or P0[0] == 0x02 else n - seckey0
+    P = P0 if sign_even == 0 else b'\x02' + P0[1:]
     k0 = int_from_bytes(hash_sha256(bytes_from_int(seckey) + msg)) % n
     if k0 == 0:
         raise RuntimeError('Failure. This happens only with negligible probability.')
     R = point_mul(G, k0)
     k = n - k0 if (jacobi(R[1]) != 1) else k0
-    e = int_from_bytes(hash_sha256(bytes_from_int(R[0]) + bytes_from_point(point_mul(G, seckey)) + msg)) % n
+    e = int_from_bytes(hash_sha256(bytes_from_int(R[0]) + P + msg)) % n
     return bytes_from_int(R[0]) + bytes_from_int((k + e * seckey) % n)
 
 def schnorr_verify(msg, pubkey, sig):
@@ -99,28 +102,33 @@ def test_vectors():
         reader = csv.reader(csvfile)
         reader.__next__()
         for row in reader:
-            (index, seckey, pubkey, msg, sig, result, comment) = row
+            (index, seckey, pubkey, msg, sign_even, sig, result, comment) = row
             pubkey = bytes.fromhex(pubkey)
             msg = bytes.fromhex(msg)
             sig = bytes.fromhex(sig)
+            sign_even = int(sign_even)
             result = result == 'TRUE'
             print('\nTest vector #%-3i: ' % int(index))
             if seckey != '':
                 seckey = int(seckey, 16)
-                sig_actual = schnorr_sign(msg, seckey)
+                sig_actual = schnorr_sign(msg, seckey, sign_even)
                 if sig == sig_actual:
                     print(' * Passed signing test.')
                 else:
                     print(' * Failed signing test.')
-                    print('   Excepted signature:', sig.hex())
+                    print('   Expected signature:', sig.hex())
                     print('     Actual signature:', sig_actual.hex())
                     all_passed = False
+            # If sign_even is set, we need to use the public key with the even
+            # Y coordinate for verification.
+            if sign_even != 0:
+                pubkey = b'\x02' + pubkey[1:]
             result_actual = schnorr_verify(msg, pubkey, sig)
             if result == result_actual:
                 print(' * Passed verification test.')
             else:
                 print(' * Failed verification test.')
-                print('   Excepted verification result:', result)
+                print('   Expected verification result:', result)
                 print('     Actual verification result:', result_actual)
                 if comment:
                     print('   Comment:', comment)
