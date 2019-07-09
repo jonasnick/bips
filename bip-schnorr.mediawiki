@@ -79,6 +79,8 @@ expensive conversion to affine coordinates first. This would even be the case if
 
 '''Optional smaller encoding of the public key''' In order to allow encoding the public key as 32 bytes instead of 33 bytes, our scheme optionally allows signing for the public key with even Y coordinate. In particular, for a given secret key the signing algorithm checks if the corresponding public key has an even Y coordinate. If that's not the case, secret and public key are negated (which results in a public key with an even Y coordinate). The signer can then send only the last 32 bytes of the compressed public key along with the signature to the verifier. After receiving the 32 byte public key part, the verifier adds the byte ''0x02'' to the beginning which allows verification of the signature.
 
+This is not a reduction in security when expressed as the number of elliptic curve operations an attacker is expected to perform to compute the secret key. An attacker can normalize any public key to a point with an even Y coordinate by negating the point if necessary. This is just a subtraction of field elements and not an elliptic curve operation.
+
 === Specification ===
 
 We first describe the verification algorithm, and then the signature algorithm.
@@ -150,14 +152,14 @@ All provided signatures are valid with overwhelming probability if and only if t
 ==== Signing ====
 
 Input:
-* The secret key ''d''': an integer in the range ''1..n-1''.
+* The secret key ''d' '': an integer in the range ''1..n-1''.
 * The message ''m'': a 32-byte array
 * The flag ''sign_even'' indicating whether the signature will be valid for the public key with even Y coordinate: a single byte.
 
 To sign ''m'' for public key ''dG'':
 * Let ''P' = bytes(dG)''
-* Let ''d = d''' if ''sign_even = 0'' or ''P'[0:1] == 0x02'', otherwise let ''d = -d'''.
-* Let ''P = P''' if ''sign_even = 0'', otherwise let ''P = 0x02 || P'[1:33]''.
+* Let ''d = d' '' if ''sign_even = 0'' or ''P'[0:1] == 0x02'', otherwise let ''d = -d' ''.
+* Let ''P = P' '' if ''sign_even = 0'', otherwise let ''P = 0x02 || P'[1:33]''.
 * Let ''k' = int(hash(bytes(d) || m)) mod n''<ref>Note that in general, taking the output of a hash function modulo the curve order will produce an unacceptably biased result. However, for the secp256k1 curve, the order is sufficiently close to ''2<sup>256</sup>'' that this bias is not observable (''1 - n / 2<sup>256</sup>'' is around ''1.27 * 2<sup>-128</sup>'').</ref>.
 * Fail if ''k' = 0''.
 * Let ''R = k'G''.
