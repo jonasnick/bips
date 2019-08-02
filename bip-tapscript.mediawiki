@@ -45,7 +45,7 @@ Additionally, the new tapscript <code>OP_SUCCESS</code> opcodes allow introducin
 
 The rules below only apply when validating a transaction input for which all of the conditions below are true:
 * The transaction output is a '''segregated witness spend''' (i.e., either the scriptPubKey or BIP16 redeemScript is a witness program as defined in BIP141).
-* It is a '''taproot spend''' as defined in bip-taproot (i.e., the witness version is 1, the witness program is 33 bytes, and the first of those is 0x00 or 0x01).
+* It is a '''taproot spend''' as defined in bip-taproot (i.e., the witness version is 1, the witness program is 32 bytes, and the first of those is 0x00 or 0x01).
 * It is a '''script path spend''' as defined in bip-taproot (i.e., after removing the optional annex from the witness stack, two or more stack elements remain).
 * The leaf version is ''0xc0'' (i.e. the first byte of the last witness element after removing the optional annex is ''0xc0'' or ''0xc1'')<ref>'''How is the ''0xc0'' constant chosen?''' Following the guidelines in bip-taproot, by choosing a value having the two top bits set, tapscript spends are identifiable even without access to the UTXO being spent.</ref>, marking it as a '''tapscript spend'''.
 
