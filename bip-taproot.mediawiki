@@ -57,7 +57,7 @@ Cryptographic hash functions are used for multiple purposes in the specification
 
 In the text below, ''hash<sub>tag</sub>(m)'' is a shorthand for ''SHA256(SHA256(tag) || SHA256(tag) || m)'', where ''tag'' is a UTF-8 encoded tag name.
 * So far, nowhere in the Bitcoin protocol are hashes used where the input of SHA256 starts with two (non-double) SHA256 hashes, making collisions with existing uses of hash functions infeasible.
-* Because the prefix ''SHA256(tag) || SHA256(tag)'' is a 64-byte long context-specific constant, optimized implementations are possible (identical to SHA256 itself, but with a modified initial state).
+* Because the prefix ''SHA256(tag) || SHA256(tag)'' is a 64-byte long context-specific constant and the ''SHA256'' block size is also 64-bytes, optimized implementations are possible (identical to SHA256 itself, but with a modified initial state).
 * Using SHA256 of the tag name itself is reasonably simple and efficient for implementations that don't choose to use the optimization above.
 
 === Script validation rules ===
