@@ -315,7 +315,7 @@ Input:
 Input:
 * The secret signing key ''sk'': a 32-byte array or 0-byte array (optional argument)
 * The aggregate public key ''aggpk'': a 32-byte array or 0-byte array (optional argument)
-* The message ''m'': a 32-byte array or 0-byte array (optional argument)
+* The message ''m'': a byte array with ''0 &le; len(m) &le; 2<sup>32</sup>-1'' (optional argument)
 * The auxiliary input ''extra_in'': a byte array with ''0 &le; len(extra_in) &le; 2<sup>32</sup>-1'' (optional argument)
 
 '''''NonceGen(sk, aggpk, m, extra_in)''''':
@@ -323,7 +323,7 @@ Input:
 * If ''len(sk) > 0'':
 ** Let ''rand'' be the byte-wise xor of ''sk'' and ''hash<sub>MuSig/aux</sub>(rand')''<ref>The random data is hashed (with a unique tag) as a precaution against situations where the randomness may be correlated with the secret signing key itself. It is xored with the secret key (rather than combined with it in a hash) to reduce the number of operations exposed to the actual secret key.</ref>.
 * Else: let ''rand = rand' ''
-* Let ''k<sub>i</sub> = int(hash<sub>MuSig/nonce</sub>(rand || bytes(1, len(aggpk)) || aggpk || bytes(1, len(m)) || m || bytes(4, len(extra_in)) || extra_in || bytes(1, i - 1))) mod n'' for ''i = 1,2''
+* Let ''k<sub>i</sub> = int(hash<sub>MuSig/nonce</sub>(rand || bytes(1, len(aggpk)) || aggpk || bytes(8, len(m)) || m || bytes(4, len(extra_in)) || extra_in || bytes(1, i - 1))) mod n'' for ''i = 1,2''
 * Fail if ''k<sub>1</sub> = 0'' or ''k<sub>2</sub> = 0''
 * Let ''R<sup>*</sup><sub>1</sub> = k<sub>1</sub>⋅G, R<sup>*</sup><sub>2</sub> = k<sub>2</sub>⋅G''
 * Let ''pubnonce = cbytes(R<sup>*</sup><sub>1</sub>) || cbytes(R<sup>*</sup><sub>2</sub>)''
@@ -352,7 +352,7 @@ The Session Context is a data structure consisting of the following elements:
 * The number ''v'' of tweaks with ''0 &le; v < 2^32''
 * The tweaks ''tweak<sub>1..v</sub>'': ''v'' 32-byte arrays
 * The tweak modes ''is_xonly_t<sub>1..v</sub>'' : ''v'' booleans
-* The message ''m'': a 32-byte array
+* The message ''m'': a byte array with ''0 &le; len(m) &le; 2<sup>32</sup>-1''
 
 We write "Let ''(aggnonce, u, pk<sub>1..u</sub>, v, tweak<sub>1..v</sub>, is_xonly_t<sub>1..v</sub>, m) = session_ctx''" to assign names to the elements of a Session Context.
 
@@ -411,7 +411,7 @@ Input:
 * The number ''v'' of tweaks with ''0 &le; v < 2^32''
 * The tweaks ''tweak<sub>1..v</sub>'': ''v'' 32-byte arrays
 * The tweak modes ''is_xonly_t<sub>1..v</sub>'' : ''v'' booleans
-* The message ''m'': a 32-byte array
+* The message ''m'': a byte array with ''0 &le; len(extra_in) &le; 2<sup>32</sup>-1''
 * The index of the signer ''i'' in the public nonces and public keys with ''0 < i &le; u''
 
 '''''PartialSigVerify(psig, pubnonce<sub>1..u</sub>, pk<sub>1..u</sub>, tweak<sub>1..v</sub>, is_xonly_t<sub>1..v</sub>, m, i)''''':
@@ -598,6 +598,7 @@ An exception to this rule is <code>MAJOR</code> version zero (0.y.z) which is fo
 The <code>MINOR</code> version is incremented whenever the inputs or the output of an algorithm changes in a backward-compatible way or new backward-compatible functionality is added.
 The <code>PATCH</code> version is incremented for other changes that are noteworthy (bug fixes, test vectors, important clarifications, etc.).
 
+* '''0.6.0''' (2022-06-27): Allow variable length messages, change order of arguments and serialization of the message in the ''NonceGen'' hash function, and add test vectors
 * '''0.5.2''' (2022-06-26): Fix ''aggpk'' in ''NonceGen'' test vectors.
 * '''0.5.1''' (2022-06-22): Rename "ordinary" tweaking to "plain" tweaking.
 * '''0.5.0''' (2022-06-21): Separate ApplyTweak from KeyAgg and introduce KeyGen Context.
