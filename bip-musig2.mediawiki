@@ -28,6 +28,9 @@ MuSig2 is a multi-signature scheme that allows multiple signers to create a sing
 Signing requires interaction between ''all'' signers involved in key aggregation.
 (MuSig2 is a ''n-of-n'' multi-signature scheme and not a ''t-of-n'' threshold-signature scheme.)
 
+
+> Consider restating this. The primary motivation is not the "activation of taproot". The motivation here is to create a standard that allows different software projects to interoperate to securely produce joint signatures under a joint public key.
+
 The primary motivation for MuSig2 is the activation of Taproot ([https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki BIP341]) on the Bitcoin network, which introduced the ability to authorize transactions with Schnorr signatures.
 This standard allows the creation of aggregate public keys that can be used in Taproot outputs.
 
@@ -84,6 +87,8 @@ As a result, the [[#session-context|Session Context]] may look very different in
 However, computation of ''GetSessionValues'' and storage of the result must '''not''' be outsourced to an untrusted third party.
 This party would have complete control over the aggregate public key and message to be signed.
 
+> Interesting point. Can you store the session context itself? If we take the message out of it maybe you could say that if a malicious party controls them you just end up with an invalid signature. I'm not sure how important this is 
+
 ==== Public Key Aggregation  ====
 
 The output of the ''KeyAgg'' algorithm is a [[#keygen-context|KeyGen Context]] which stores information required for tweaking (see [[#tweaking|below]]).
@@ -124,6 +129,11 @@ This way, the final signature is created quicker and with fewer roundtrips.
 However, applications that use this method presumably store the nonces for a longer time and must therefore be even more careful not to reuse them.
 Moreover, this method is not compatible with the defense-in-depth mechanism described in the previous paragraph.
 
+> The way I see it you have two security assumptions:
+> 1. (synthetic nonce) That you can securely generate store and retrieive (and delete!!!) secret nonces.
+> 2. (deterministic nonce) That you can come up with a unique session id for every signing session.
+> Which one is the stronger assumption will depend on the application. I'm not sure that these two paragraphs are totally capturing that. It implies that (2) doesn't exist or is the "last resort". But I think that (2) might be easier to get right than (1) in applications like lightning.
+
 Instead of every signer broadcasting their ''pubnonce'' to every other signer, the signers can send their ''pubnonce'' to a single aggregator node that runs ''NonceAgg'' and sends the ''aggnonce'' back to the signers.
 This technique reduces the overall communication.
 The aggregator node does not need to be trusted for the scheme's security to hold.
@@ -146,6 +156,8 @@ Note that partial signatures are ''not'' signatures.
 An adversary can forge a partial signature, i.e., create a partial signature without knowing the secret key for the claimed public key<ref>Assume an adversary wants to forge a partial signature for public key ''P''. It joins the signing session pretending to be two different signers, one with public key ''P'' and one with another public key. The adversary can then set the second signer's nonce such that it will be able to produce a partial signature for ''P'', but not for the other claimed signer. An explanation of the individual steps required to create a partial signature forgery can be found in [https://gist.github.com/AdamISZ/ca974ed67889cedc738c4a1f65ff620b this writeup].</ref>.
 However, if ''PartialSigVerify'' succeeds for all partial signatures then ''PartialSigAgg'' will return a valid Schnorr signature.
 
+> On this topic, should we consider making an MuSig aggregated signature over a set of keys a "good enough" proof of knowledge of each indiividual key i.e. a "proof of possesion". We need to do this in DLCs at the moment to prevent some "orcale" on "oracle" key cancellation attacks where you need a PoP for multiple points. I think the security result directly implies this but want to check if we all agree.
+
 ==== Tweaking ====
 
 The aggregate public key can be ''tweaked'', which modifies the key as defined in the [[#tweaking-definition|Tweaking Definition]] subsection.
@@ -153,7 +165,7 @@ In order to apply a tweak, the KeyGen Context output by ''KeyAgg'' is provided t
 The resulting KeyGen Context can be used to apply another tweak with ''ApplyTweak'' or obtain the aggregate public key with ''GetPubkey''.
 
 In addition to public keys, the ''KeyAgg'' algorithm accepts tweaks, which modify the aggregate public key as defined in the [[#tweaking-definition|Tweaking Definition]] subsection.
-For example, if ''KeyAgg'' is run with ''v = 2'', ''is_xonly_t<sub>1</sub> = false'', ''is_xonly_t<sub>2</sub> = true'', then the aggregate key is first ordinarily tweaked with ''tweak<sub>1</sub>'' and then X-only tweaked with ''tweak<sub>2</sub>''.
+For example, if ''KeyAgg'' is run with ''v = 2'', ''is_xonly_t<sub>1</sub> = false'', ''is_xonly_t<sub>2</sub> = true'', then the aggregate key is first ordinarily tweaketopicd with ''tweak<sub>1</sub>'' and then X-only tweaked with ''tweak<sub>2</sub>''.
 
 The purpose of specifying tweaking is to ensure compatibility with existing uses of tweaking, i.e., that the result of signing is a valid signature for the tweaked public key.
 The MuSig2 algorithms take arbitrary tweaks as input but accepting arbitrary tweaks may negatively affect the protocol's security.
