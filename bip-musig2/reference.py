@@ -1,6 +1,7 @@
 from collections import namedtuple
 from typing import Any, List, Optional, Tuple
 import hashlib
+import json
 import secrets
 import time
 
@@ -387,49 +388,34 @@ def assertRaises(exception, try_fn, except_fn):
         assert(except_fn(e))
 
 def test_key_agg_vectors():
-    X = fromhex_all([
-        'F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9',
-        'DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659',
-        '3590A94E768F8E1815C2F24B4D80A8E3149316C3518CE7B7AD338368D038CA66',
-    ])
+    with open('key_agg_vectors.json') as f:
+        test_data = json.load(f)
 
-    expected = fromhex_all([
-        'E5830140512195D74C8307E39637CBE5FB730EBEAB80EC514CF88A877CEEEE0B',
-        'D70CD69A2647F7390973DF48CBFA2CCC407B8B2D60B08C5F1641185C7998A290',
-        '81A8B093912C9E481408D09776CEFB48AEB8B65481B6BAAFB3C5810106717BEB',
-        '2EB18851887E7BDC5E830E89B19DDBC28078F1FA88AAD0AD01CA06FE4F80210B',
-    ])
+    X = fromhex_all(test_data["pubkeys"])
+    T = fromhex_all(test_data["tweaks"])
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
 
-    # Vector 1
-    assert get_pk(key_agg([X[0], X[1], X[2]])) == expected[0]
-    # Vector 2
-    assert get_pk(key_agg([X[2], X[1], X[0]])) == expected[1]
-    # Vector 3
-    assert get_pk(key_agg([X[0], X[0], X[0]])) == expected[2]
-    # Vector 4
-    assert get_pk(key_agg([X[0], X[0], X[1], X[1]])) == expected[3]
+    for test_case in valid_test_cases:
+        pubkeys = [X[i] for i in test_case["key_indices"]]
+        expected = bytes.fromhex(test_case["expected"])
 
-    # Vector 5: Invalid public key
-    invalid_pk = bytes.fromhex('0000000000000000000000000000000000000000000000000000000000000005')
-    assertRaises(InvalidContributionError,
-                 lambda: key_agg([X[0], invalid_pk]),
-                 lambda e: e.signer == 1 and e.contrib == "pubkey")
-    # Vector 6: Public key exceeds field size
-    invalid_pk = bytes.fromhex('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC30')
-    assertRaises(InvalidContributionError,
-                 lambda: key_agg([X[0], invalid_pk]),
-                 lambda e: e.signer == 1 and e.contrib == "pubkey")
-    # Vector 7: Tweak is out of range
-    invalid_tweak = bytes.fromhex('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141')
-    assertRaises(ValueError,
-                 lambda: key_agg_and_tweak([X[0], X[1]], [invalid_tweak], [True]),
-                 lambda e: str(e) == 'The tweak must be less than n.')
-    # Vector 8: Intermediate tweaking result is point at infinity
-    G_ = bytes_from_point(G)
-    coeff = bytes_from_int(n - key_agg_coeff([G_], G_))
-    assertRaises(ValueError,
-                 lambda: key_agg_and_tweak([G_], [coeff], [False]),
-                 lambda e: str(e) == 'The result of tweaking cannot be infinity.')
+        assert get_pk(key_agg(pubkeys)) == expected
+
+    expected_errors = [
+        (InvalidContributionError, lambda e: e.signer == 1 and e.contrib == "pubkey"),
+        (InvalidContributionError, lambda e: e.signer == 1 and e.contrib == "pubkey"),
+        (ValueError, lambda e: str(e) == 'The tweak must be less than n.'),
+        (ValueError, lambda e: str(e) == 'The result of tweaking cannot be infinity.')
+    ]
+    for i, test_case in enumerate(error_test_cases):
+        exception, except_fn = expected_errors[i]
+
+        pubkeys = [X[i] for i in test_case["key_indices"]]
+        tweaks = [T[i] for i in test_case["tweak_indices"]]
+        is_xonly = test_case["is_xonly"]
+
+        assertRaises(exception, lambda: key_agg_and_tweak(pubkeys, tweaks, is_xonly), except_fn)
 
 def test_nonce_gen_vectors():
     def fill(i):
