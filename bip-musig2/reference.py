@@ -543,77 +543,62 @@ def test_sign_verify_vectors():
         assertRaises(exception, lambda: partial_sig_verify(sig, pubnonces, pubkeys, [], [], msg, signer_index), except_fn)
 
 def test_tweak_vectors():
-    X = fromhex_all([
-        'F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9',
-        'DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659',
-    ])
+    with open('tweak_vectors.json') as f:
+        test_data = json.load(f)
 
-    secnonce = bytes.fromhex(
-        '508B81A611F100A6B2B6B29656590898AF488BCF2E1F55CF22E5CFB84421FE61' +
-        'FA27FD49B1D50085B481285E1CA205D55C82CC1B31FF5CD54A489829355901F7')
+    sk = bytes.fromhex(test_data["sk"])
+    X = fromhex_all(test_data["pubkeys"])
+    # The public key corresponding to sk is at index 0
+    assert X[0] == bytes_from_point(point_mul(G, int_from_bytes(sk)))
 
+    secnonce = bytes.fromhex(test_data["secnonce"])
+    pnonce = fromhex_all(test_data["pnonces"])
     # The public nonce corresponding to secnonce is at index 0
-    pnonce = fromhex_all([
-        '0337C87821AFD50A8644D820A8F3E02E499C931865C2360FB43D0A0D20DAFE07EA' +
-        '0287BF891D2A6DEAEBADC909352AA9405D1428C15F4B75F04DAE642A95C2548480',
-        '0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798' +
-        '0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798',
-        '032DE2662628C90B03F5E720284EB52FF7D71F4284F627B68A853D78C78E1FFE93' +
-        '03E4C5524E83FFE1493B9077CF1CA6BEB2090C93D930321071AD40B2F44E599046'
-    ])
+    k1 = int_from_bytes(secnonce[0:32])
+    k2 = int_from_bytes(secnonce[32:64])
+    assert pnonce[0] == cbytes(point_mul(G, k1)) + cbytes(point_mul(G, k2))
 
-    aggnonce = bytes.fromhex(
-        '028465FCF0BBDBCF443AABCCE533D42B4B5A10966AC09A49655E8C42DAAB8FCD61' +
-        '037496A3CC86926D452CAFCFD55D25972CA1675D549310DE296BFF42F72EEEA8C9')
+    aggnonce = bytes.fromhex(test_data["aggnonce"])
+    # The aggnonce is the aggregate of the first three elements of pnonce
+    assert(aggnonce == nonce_agg([pnonce[0], pnonce[1], pnonce[2]]))
 
-    sk  = bytes.fromhex('7FB9E0E687ADA1EEBF7ECFE2F21E73EBDB51A7D450948DFE8D76D7F2D1007671')
-    msg = bytes.fromhex('F95466D086770E689964664219266FE5ED215C92AE20BAB5C9D79ADDDDF3C0CF')
+    tweak = fromhex_all(test_data["tweaks"])
+    msg = bytes.fromhex(test_data["msg"])
 
-    tweaks = fromhex_all([
-        'E8F791FF9225A2AF0102AFFF4A9A723D9612A682A25EBE79802B263CDFCD83BB',
-        'AE2EA797CC0FE72AC5B97B97F3C6957D7E4199A167A58EB08BCAFFDA70AC0455',
-        'F52ECBC565B3D8BEA2DFD5B75A4F457E54369809322E4120831626F290FA87E0',
-        '1969AD73CC177FA0B4FCED6DF1F7BF9907E665FDE9BA196A74FED0A3CF5AEF9D',
-    ])
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
 
-    expected = fromhex_all([
-        '5E24C7496B565DEBC3B9639E6F1304A21597F9603D3AB05B4913641775E1375B',
-        '78408DDCAB4813D1394C97D493EF1084195C1D4B52E63ECD7BC5991644E44DDD',
-        'C3A829A81480E36EC3AB052964509A94EBF34210403D16B226A6F16EC85B7357',
-        '8C4473C6A382BD3C4AD7BE59818DA5ED7CF8CEC4BC21996CFDA08BB4316B8BC7',
-    ])
+    for test_case in valid_test_cases:
+        pubkeys = [X[i] for i in test_case["key_indices"]]
+        pubnonces = [pnonce[i] for i in test_case["nonce_indices"]]
+        tweaks = [tweak[i] for i in test_case["tweak_indices"]]
+        is_xonly = test_case["is_xonly"]
+        signer_index = test_case["signer_index"]
+        expected = bytes.fromhex(test_case["expected"])
 
-    pk = bytes_from_point(point_mul(G, int_from_bytes(sk)))
+        session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
+        assert sign(secnonce, sk, session_ctx) == expected
 
-    # Vector 1: A single x-only tweak
-    session_ctx = SessionContext(aggnonce, [X[0], X[1], pk], tweaks[:1], [True], msg)
-    assert sign(secnonce, sk, session_ctx) == expected[0]
-    # WARNING: An actual implementation should clear the secnonce after use,
-    # e.g. by setting secnonce = bytes(64) after usage. Reusing the secnonce, as
-    # we do here for testing purposes, can leak the secret key.
-    assert partial_sig_verify(expected[0], [pnonce[1], pnonce[2], pnonce[0]], [X[0], X[1], pk], tweaks[:1], [True], msg, 2)
+        # WARNING: An actual implementation should clear the secnonce after use,
+        # e.g. by setting secnonce = bytes(64) after usage. Reusing the secnonce, as
+        # we do here for testing purposes, can leak the secret key.
 
-    # Vector 2: A single plain tweak
-    session_ctx = SessionContext(aggnonce, [X[0], X[1], pk], tweaks[:1], [False], msg)
-    assert sign(secnonce, sk, session_ctx) == expected[1]
-    assert partial_sig_verify(expected[1], [pnonce[1], pnonce[2], pnonce[0]], [X[0], X[1], pk], tweaks[:1], [False], msg, 2)
+        assert partial_sig_verify(expected, pubnonces, pubkeys, tweaks, is_xonly, msg, signer_index)
 
-    # Vector 3: A plain tweak followed by an x-only tweak
-    session_ctx = SessionContext(aggnonce, [X[0], X[1], pk], tweaks[:2], [False, True], msg)
-    assert sign(secnonce, sk, session_ctx) == expected[2]
-    assert partial_sig_verify(expected[2], [pnonce[1], pnonce[2], pnonce[0]], [X[0], X[1], pk], tweaks[:2], [False, True], msg, 2)
+    expected_errors = [
+        (ValueError, lambda e: str(e) == 'The tweak must be less than n.')
+    ]
+    for i, test_case in enumerate(error_test_cases):
+        exception, except_fn = expected_errors[i]
 
-    # Vector 4: Four tweaks: x-only, plain, x-only, plain
-    session_ctx = SessionContext(aggnonce, [X[0], X[1], pk], tweaks[:4], [True, False, True, False], msg)
-    assert sign(secnonce, sk, session_ctx) == expected[3]
-    assert partial_sig_verify(expected[3], [pnonce[1], pnonce[2], pnonce[0]], [X[0], X[1], pk], tweaks[:4], [True, False, True, False], msg, 2)
+        pubkeys = [X[i] for i in test_case["key_indices"]]
+        pubnonces = [pnonce[i] for i in test_case["nonce_indices"]]
+        tweaks = [tweak[i] for i in test_case["tweak_indices"]]
+        is_xonly = test_case["is_xonly"]
+        signer_index = test_case["signer_index"]
 
-    # Vector 5: Tweak is invalid because it exceeds group size
-    invalid_tweak = bytes.fromhex('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141')
-    session_ctx = SessionContext(aggnonce, [X[0], X[1], pk], [invalid_tweak], [False], msg)
-    assertRaises(ValueError,
-                 lambda: sign(secnonce, sk, session_ctx),
-                 lambda e: str(e) == 'The tweak must be less than n.')
+        session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
+        assertRaises(exception, lambda: sign(secnonce, sk, session_ctx), except_fn)
 
 def test_sig_agg_vectors():
     X = fromhex_all([
