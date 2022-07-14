@@ -598,6 +598,7 @@ An exception to this rule is <code>MAJOR</code> version zero (0.y.z) which is fo
 The <code>MINOR</code> version is incremented whenever the inputs or the output of an algorithm changes in a backward-compatible way or new backward-compatible functionality is added.
 The <code>PATCH</code> version is incremented for other changes that are noteworthy (bug fixes, test vectors, important clarifications, etc.).
 
+* '''0.6.1''' (2022-07-14): Extract test vectors into separate JSON file.
 * '''0.6.0''' (2022-06-27): Allow variable length messages, change order of arguments and serialization of the message in the ''NonceGen'' hash function, and add test vectors
 * '''0.5.2''' (2022-06-26): Fix ''aggpk'' in ''NonceGen'' test vectors.
 * '''0.5.1''' (2022-06-22): Rename "ordinary" tweaking to "plain" tweaking.
