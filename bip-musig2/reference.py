@@ -609,6 +609,7 @@ def test_sig_agg_vectors():
     # These nonces are only required if the tested API takes the individual
     # nonces and not the aggregate nonce.
     pnonce = fromhex_all(test_data["pnonces"])
+    aggnonce = fromhex_all(test_data["aggnonces"])
 
     tweak = fromhex_all(test_data["tweaks"])
     psig = fromhex_all(test_data["psigs"])
@@ -620,7 +621,8 @@ def test_sig_agg_vectors():
 
     for test_case in valid_test_cases:
         pubnonces = [pnonce[i] for i in test_case["nonce_indices"]]
-        aggnonce = nonce_agg(pubnonces)
+        aggnonce = bytes.fromhex(test_case["aggnonce"])
+        assert aggnonce == nonce_agg(pubnonces)
 
         pubkeys = [X[i] for i in test_case["key_indices"]]
         tweaks = [tweak[i] for i in test_case["tweak_indices"]]
