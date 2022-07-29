@@ -609,7 +609,6 @@ def test_sig_agg_vectors():
     # These nonces are only required if the tested API takes the individual
     # nonces and not the aggregate nonce.
     pnonce = fromhex_all(test_data["pnonces"])
-    aggnonce = fromhex_all(test_data["aggnonces"])
 
     tweak = fromhex_all(test_data["tweaks"])
     psig = fromhex_all(test_data["psigs"])
