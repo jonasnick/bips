@@ -334,13 +334,13 @@ def sign(secnonce: bytes, sk: bytes, session_ctx: SessionContext) -> bytes:
     gp = 1 if has_even_y(P) else n - 1
     g = 1 if has_even_y(Q) else n - 1
     d = g * gacc * gp * d_ % n
-    s = (k_1 + b * k_2 + e * a * d) % n
-    psig = bytes_from_int(s)
-    R_1_ = point_mul(G, k_1_)
-    R_2_ = point_mul(G, k_2_)
-    assert R_1_ is not None
-    assert R_2_ is not None
-    pubnonce = cbytes(R_1_) + cbytes(R_2_)
+    sp = (k_1 + b * k_2 + e * a * d) % n
+    psig = bytes_from_int(sp)
+    Rp_1 = point_mul(G, k_1_)
+    Rp_2 = point_mul(G, k_2_)
+    assert Rp_1 is not None
+    assert Rp_2 is not None
+    pubnonce = cbytes(Rp_1) + cbytes(Rp_2)
     # Optional correctness check. The result of signing should pass signature verification.
     assert partial_sig_verify_internal(psig, pubnonce, bytes_from_point(P), session_ctx)
     return psig
@@ -354,22 +354,22 @@ def partial_sig_verify(psig: bytes, pubnonces: List[bytes], pubkeys: List[bytes]
     session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
     return partial_sig_verify_internal(psig, pubnonces[i], pubkeys[i], session_ctx)
 
-def partial_sig_verify_internal(psig: bytes, pubnonce: bytes, pk_: bytes, session_ctx: SessionContext) -> bool:
+def partial_sig_verify_internal(psig: bytes, pubnonce: bytes, pk: bytes, session_ctx: SessionContext) -> bool:
     (Q, gacc, _, b, R, e) = get_session_values(session_ctx)
-    s = int_from_bytes(psig)
-    if s >= n:
+    sp = int_from_bytes(psig)
+    if sp >= n:
         return False
-    R_1_ = cpoint(pubnonce[0:33])
-    R_2_ = cpoint(pubnonce[33:66])
-    R__ = point_add(R_1_, point_mul(R_2_, b))
-    R_ = R__ if has_even_y(R) else point_negate(R__)
+    Rp_1 = cpoint(pubnonce[0:33])
+    Rp_2 = cpoint(pubnonce[33:66])
+    Rp_ = point_add(Rp_1, point_mul(Rp_2, b))
+    Rp = Rp_ if has_even_y(R) else point_negate(Rp_)
     g = 1 if has_even_y(Q) else n - 1
     g_ = g * gacc % n
-    P = point_mul(lift_x(pk_), g_)
+    P = point_mul(lift_x(pk), g_)
     if P is None:
         return False
     a = get_session_key_agg_coeff(session_ctx, P)
-    return point_mul(G, s) == point_add(R_, point_mul(P, e * a % n))
+    return point_mul(G, sp) == point_add(Rp, point_mul(P, e * a % n))
 
 def partial_sig_agg(psigs: List[bytes], session_ctx: SessionContext) -> bytes:
     (Q, _, tacc, _, R, e) = get_session_values(session_ctx)
