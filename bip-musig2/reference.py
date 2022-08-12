@@ -354,7 +354,7 @@ def partial_sig_verify(psig: bytes, pubnonces: List[bytes], pubkeys: List[bytes]
     session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
     return partial_sig_verify_internal(psig, pubnonces[i], pubkeys[i], session_ctx)
 
-def partial_sig_verify_internal(psig: bytes, pubnonce: bytes, pk_: bytes, session_ctx: SessionContext) -> bool:
+def partial_sig_verify_internal(psig: bytes, pubnonce: bytes, pk: bytes, session_ctx: SessionContext) -> bool:
     (Q, gacc, _, b, R, e) = get_session_values(session_ctx)
     s = int_from_bytes(psig)
     if s >= n:
@@ -365,7 +365,7 @@ def partial_sig_verify_internal(psig: bytes, pubnonce: bytes, pk_: bytes, sessio
     R_ = R__ if has_even_y(R) else point_negate(R__)
     g = 1 if has_even_y(Q) else n - 1
     g_ = g * gacc % n
-    P = point_mul(lift_x(pk_), g_)
+    P = point_mul(lift_x(pk), g_)
     if P is None:
         return False
     a = get_session_key_agg_coeff(session_ctx, P)

@@ -335,8 +335,8 @@ Input:
 ** Let ''extra_in = empty_bytestring''
 * Let ''k<sub>i</sub> = int(hash<sub>MuSig/nonce</sub>(rand || bytes(1, len(aggpk)) || aggpk || m_prefixed || bytes(4, len(extra_in)) || extra_in || bytes(1, i - 1))) mod n'' for ''i = 1,2''
 * Fail if ''k<sub>1</sub> = 0'' or ''k<sub>2</sub> = 0''
-* Let ''R<sup>*</sup><sub>1</sub> = k<sub>1</sub>⋅G, R<sup>*</sup><sub>2</sub> = k<sub>2</sub>⋅G''
-* Let ''pubnonce = cbytes(R<sup>*</sup><sub>1</sub>) || cbytes(R<sup>*</sup><sub>2</sub>)''
+* Let ''R<sub>1,*</sub> = k<sub>1</sub>⋅G, R<sup>2,*</sub> = k<sub>2</sub>⋅G''
+* Let ''pubnonce = cbytes(R<sub>1,*</sub>) || cbytes(R<sub>2,*</sub>)''
 * Let ''secnonce = bytes(32, k<sub>1</sub>) || bytes(32, k<sub>2</sub>)''
 * Return ''secnonce'' and ''pubnonce''
 
@@ -430,17 +430,17 @@ Input:
 * Run ''PartialSigVerifyInternal(psig, pubnonce<sub>i</sub>, pk<sub>i</sub>, session_ctx)''
 * Return success iff no failure occurred before reaching this point.
 
-'''''PartialSigVerifyInternal(psig, pubnonce, pk<sup>*</sup>, session_ctx)''''':
+'''''PartialSigVerifyInternal(psig, pubnonce, pk, session_ctx)''''':
 * Let ''(Q, gacc, _, b, R, e) = GetSessionValues(session_ctx)''; fail if that fails
 * Let ''s = int(psig)''; fail if ''s &ge; n''
-* Let ''R<sup>*</sup><sub>1</sub> = cpoint(pubnonce[0:33]), R<sup>*</sup><sub>2</sub> = cpoint(pubnonce[33:66])''
-* Let ''R<sup>*</sup>' = R<sup>*</sup><sub>1</sub> + b⋅R<sup>*</sup><sub>2</sub>''
-* Let ''R<sup>*</sup> = R<sup>*</sup>' '' if ''has_even_y(R)'', otherwise let ''R<sup>*</sup> = -R<sup>*</sup>' ''
+* Let ''R<sub>1,*</sub> = cpoint(pubnonce[0:33]), R<sub>2,*</sub> = cpoint(pubnonce[33:66])''
+* Let ''R<sub>*</sub>' = R<sub>1,*</sub> + b⋅R<sub>2,*</sub>''
+* Let ''R<sub>*</sub> = R<sub>*</sub>' '' if ''has_even_y(R)'', otherwise let ''R<sub>*</sub> = -R<sub>*</sub>' ''
 * Let ''g = 1'' if ''has_even_y(Q)'', otherwise let ''g = -1 mod n''
 * Let ''g' = g⋅gacc mod n''
-* <div id="SigVerify negation"></div>Let ''P = g'⋅point(pk<sup>*</sup>)''; fail if that fails (See [[#negation-of-the-public-key-when-partially-verifying|Negation Of The Public Key When Partially Verifying]])
+* <div id="SigVerify negation"></div>Let ''P = g'⋅point(pk)''; fail if that fails (See [[#negation-of-the-public-key-when-partially-verifying|Negation Of The Public Key When Partially Verifying]])
 * Let ''a = GetSessionKeyAggCoeff(session_ctx, P)''; fail if that fails
-* Fail if ''s⋅G &ne; R<sup>*</sup> + e⋅a⋅P''
+* Fail if ''s⋅G &ne; R<sub>*</sub> + e⋅a⋅P''
 * Return success iff no failure occurred before reaching this point.
 
 ==== Partial Signature Aggregation ====
