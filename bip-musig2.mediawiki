@@ -237,11 +237,11 @@ The KeyGen Context is a data structure consisting of the following elements:
 
 We write "Let ''(Q, gacc, tacc) = keygen_ctx''" to assign names to the elements of a KeyGen Context.
 
-'''''GetPubkey(keygen_ctx)''''':
+Algorithm '''GetPubkey(keygen_ctx):'''
 * Let ''(Q, _, _) = keygen_ctx''
 * Return ''bytes(Q)''
 
-'''''GetPubkey33(keygen_ctx)''''':
+Algorithm '''GetPubkey33(keygen_ctx):'''
 * Let ''(Q, _, _) = keygen_ctx''
 * Return ''cbytes(Q)''
 
@@ -251,7 +251,7 @@ Input:
 * The number ''u'' of public keys with ''0 < u < 2^32''
 * The public keys ''pk<sub>1..u</sub>'': ''u'' 32-byte arrays
 
-'''''KeySort(pk<sub>1..u</sub>)''''':
+Algorithm '''KeySort(pk<sub>1..u</sub>)''':
 * Return ''pk<sub>1..u</sub>'' sorted in lexicographical order.
 
 ==== Key Aggregation ====
@@ -260,7 +260,7 @@ Input:
 * The number ''u'' of public keys with ''0 < u < 2^32''
 * The public keys ''pk<sub>1..u</sub>'': ''u'' 32-byte arrays
 
-'''''KeyAgg(pk<sub>1..u</sub>)''''':
+Algorithm '''KeyAgg(pk<sub>1..u</sub>)''':
 * Let ''pk2 = GetSecondKey(pk<sub>1..u</sub>)''
 * For ''i = 1 .. u'':
 ** Let ''P<sub>i</sub> = point(pk<sub>i</sub>)''; fail if that fails.
@@ -271,7 +271,7 @@ Input:
 * Let ''tacc = 0''
 * Return ''keygen_ctx = (Q, gacc, tacc)''.
 
-internal '''''HashKeys(pk<sub>1..u</sub>)''''':
+Internal Algorithm '''HashKeys(pk<sub>1..u</sub>)''':
 * Return ''hash<sub>KeyAgg list</sub>(pk<sub>1</sub> || pk<sub>2</sub> || ... || pk<sub>u</sub>)''
 
 '''''GetSecondKey(pk<sub>1..u</sub>)''''':
