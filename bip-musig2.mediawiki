@@ -402,9 +402,9 @@ Input:
 * Fail if ''d' = 0'' or ''d' &ge; n''
 * Let ''P = d'⋅G''
 * Let ''a = GetSessionKeyAggCoeff(session_ctx, P)''; fail if that fails
-* Let ''gp = 1'' if ''has_even_y(P)'', otherwise let ''gp = -1 mod n''
+* Let ''gpk = 1'' if ''has_even_y(P)'', otherwise let ''gpk = -1 mod n''
 * Let ''g = 1'' if ''has_even_y(Q)'', otherwise let ''g = -1 mod n''
-* <div id="Sign negation"></div>Let ''d = g⋅gacc⋅gp⋅d' mod n'' (See [[negation-of-the-secret-key-when-signing|Negation Of The Secret Key When Signing]])
+* <div id="Sign negation"></div>Let ''d = g⋅gacc⋅gpk⋅d' mod n'' (See [[negation-of-the-secret-key-when-signing|Negation Of The Secret Key When Signing]])
 * Let ''s = (k<sub>1</sub> + b⋅k<sub>2</sub> + e⋅a⋅d) mod n''
 * Let ''psig = bytes(32, s)''
 * Let ''pubnonce = cbytes(k'<sub>1</sub>⋅G) || cbytes(k'<sub>2</sub>⋅G)''
@@ -502,8 +502,8 @@ The following elliptic curve points arise as intermediate steps in the MuSig2 pr
 The signer's goal is to produce a partial signature corresponding to the final result of key aggregation and tweaking, i.e. the X-only public key ''with_even_y(Q<sub>v</sub>)''.
 
 <poem>
-We define ''gp<sub>i</sub>'' for ''1 &le; i &le; u'' to be ''gp '' as computed in the ''Sign'' algorithm of the ''i''-th signer. Note that ''gp<sub>i</sub>'' indicates whether the ''i''-th signer needed to negate their secret key to produce an X-only public key. In particular,
-    ''P<sub>i</sub> = gp<sub>i</sub>⋅d'<sub>i</sub>⋅G''.
+We define ''gpk<sub>i</sub>'' for ''1 &le; i &le; u'' to be ''gpk '' as computed in the ''Sign'' algorithm of the ''i''-th signer. Note that ''gpk<sub>i</sub>'' indicates whether the ''i''-th signer needed to negate their secret key to produce an X-only public key. In particular,
+    ''P<sub>i</sub> = gpk<sub>i</sub>⋅d'<sub>i</sub>⋅G''.
 
 For ''1 &le; i &le; v'', we denote the value ''g'' computed in the ''i''-th execution of ''ApplyTweak'' by ''g<sub>i-1</sub>''. Therefore, ''g<sub>i-1</sub>'' is ''-1 mod n'' if and only if ''is_xonly_t<sub>i</sub>'' is true and ''Q<sub>i-1</sub>'' has an odd Y coordinate. In other words, ''g<sub>i-1</sub>'' indicates whether ''Q<sub>i-1</sub>'' needed to be negated to apply an X-only tweak:
     ''f(i-1) = g<sub>i-1</sub>⋅Q<sub>i-1</sub>'' for ''1 &le; i &le; v''.
@@ -541,17 +541,17 @@ Then we have
     ''with_even_y(Q<sub>v</sub>) - g<sub>v</sub>⋅tacc<sub>v</sub>⋅G
         = g<sub>v</sub>⋅gacc<sub>v</sub>⋅Q<sub>0</sub>
         = g<sub>v</sub>⋅gacc<sub>v</sub>⋅(a<sub>1</sub>⋅P<sub>1</sub> + ... + a<sub>u</sub>⋅P<sub>u</sub>)
-        = g<sub>v</sub>⋅gacc<sub>v</sub>⋅(a<sub>1</sub>⋅gp<sub>1</sub>⋅d'<sub>1</sub>⋅G + ... + a<sub>u</sub>⋅gp<sub>u</sub>⋅d'<sub>u</sub>⋅G)
-        = sum<sub>i=1..u</sub>(g<sub>v</sub>⋅gacc<sub>v</sub>⋅gp<sub>i</sub>⋅a<sub>i</sub>⋅d'<sub>i</sub>)*G''.
+        = g<sub>v</sub>⋅gacc<sub>v</sub>⋅(a<sub>1</sub>⋅gpk<sub>1</sub>⋅d'<sub>1</sub>⋅G + ... + a<sub>u</sub>⋅gpk<sub>u</sub>⋅d'<sub>u</sub>⋅G)
+        = sum<sub>i=1..u</sub>(g<sub>v</sub>⋅gacc<sub>v</sub>⋅gpk<sub>i</sub>⋅a<sub>i</sub>⋅d'<sub>i</sub>)*G''.
 </poem>
 
-Intuitively, ''gacc<sub>i</sub>'' tracks accumulated sign flipping and ''tacc<sub>i</sub>'' tracks the accumulated tweak value after applying the first ''i'' individual tweaks. Additionally, ''g<sub>v</sub>'' indicates whether ''Q<sub>v</sub>'' needed to be negated to produce the final X-only result, and ''gp<sub>i</sub>'' indicates whether ''d'<sub>i</sub>'' needs to be negated to produce the initial X-only key ''P<sub>i</sub>''. Thus, signer ''i'' multiplies its secret key ''d'<sub>i</sub>'' with ''g<sub>v</sub>⋅gacc<sub>v</sub>⋅gp<sub>i</sub>'' in the ''[[#Sign negation|Sign]]'' algorithm.
+Intuitively, ''gacc<sub>i</sub>'' tracks accumulated sign flipping and ''tacc<sub>i</sub>'' tracks the accumulated tweak value after applying the first ''i'' individual tweaks. Additionally, ''g<sub>v</sub>'' indicates whether ''Q<sub>v</sub>'' needed to be negated to produce the final X-only result, and ''gpk<sub>i</sub>'' indicates whether ''d'<sub>i</sub>'' needs to be negated to produce the initial X-only key ''P<sub>i</sub>''. Thus, signer ''i'' multiplies its secret key ''d'<sub>i</sub>'' with ''g<sub>v</sub>⋅gacc<sub>v</sub>⋅gpk<sub>i</sub>'' in the ''[[#Sign negation|Sign]]'' algorithm.
 
 ==== Negation Of The Public Key When Partially Verifying ====
 
 <poem>
 As explained in [[#negation-of-the-secret-key-when-signing|Negation Of The Secret Key When Signing]] the signer uses a possibly negated secret key
-    ''d = g<sub>v</sub>⋅gacc<sub>v</sub>⋅gp⋅d' mod n''
+    ''d = g<sub>v</sub>⋅gacc<sub>v</sub>⋅gpk⋅d' mod n''
 when producing a partial signature to ensure that the aggregate signature will correspond to an aggregate public key with even Y coordinate.
 </poem>
 
@@ -563,7 +563,7 @@ The ''[[#SigVerify negation|PartialSigVerifyInternal]]'' algorithm is supposed t
 <poem>
 The verifier doesn't have access to ''d⋅G'', but can construct it using the xonly public key ''pk<sup>*</sup>'' as follows:
 ''d⋅G
-    = g<sub>v</sub>⋅gacc<sub>v</sub>⋅gp⋅d'⋅G
+    = g<sub>v</sub>⋅gacc<sub>v</sub>⋅gpk⋅d'⋅G
     = g<sub>v</sub>⋅gacc<sub>v</sub>⋅point(pk<sup>*</sup>)''
 Note that the aggregate public key and list of tweaks are inputs to partial signature verification, so the verifier can also construct ''g<sub>v</sub>'' and ''gacc<sub>v</sub>''.
 </poem>
