@@ -676,6 +676,53 @@ def test_tweak_vectors() -> None:
         session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
         assert_raises(exception, lambda: sign(secnonce, sk, session_ctx), except_fn)
 
+def test_det_sign_vectors() -> None:
+    with open(os.path.join(sys.path[0], 'det_sign_vectors.json')) as f:
+        test_data = json.load(f)
+
+    sk = bytes.fromhex(test_data["sk"])
+    X = fromhex_all(test_data["pubkeys"])
+    # The public key corresponding to sk is at index 0
+    assert X[0] == keygen(sk)
+
+    msgs = fromhex_all(test_data["msgs"])
+
+    valid_test_cases = test_data["valid_test_cases"]
+    error_test_cases = test_data["error_test_cases"]
+
+    for test_case in valid_test_cases:
+        pubkeys = [X[i] for i in test_case["key_indices"]]
+        aggothernonce = bytes.fromhex(test_case["aggothernonce"])
+        tweaks = fromhex_all(test_case["tweaks"])
+        is_xonly = test_case["is_xonly"]
+        msg = msgs[test_case["msg_index"]]
+        signer_index = test_case["signer_index"]
+        rand = bytes.fromhex(test_case["rand"]) if test_case["rand"] is not None else None
+        expected = fromhex_all(test_case["expected"])
+
+        pubnonce, psig = deterministic_sign(sk, aggothernonce, pubkeys, tweaks, is_xonly, msg, rand)
+        assert pubnonce == expected[0]
+        assert psig == expected[1]
+
+        pubnonces = [aggothernonce, pubnonce]
+        aggnonce = nonce_agg(pubnonces)
+        session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
+        assert partial_sig_verify_internal(psig, pubnonce, pubkeys[signer_index], session_ctx)
+
+    for i, test_case in enumerate(error_test_cases):
+        exception, except_fn = get_error_details(test_case)
+
+        pubkeys = [X[i] for i in test_case["key_indices"]]
+        aggothernonce = bytes.fromhex(test_case["aggothernonce"])
+        tweaks = fromhex_all(test_case["tweaks"])
+        is_xonly = test_case["is_xonly"]
+        msg = msgs[test_case["msg_index"]]
+        signer_index = test_case["signer_index"]
+        rand = bytes.fromhex(test_case["rand"]) if test_case["rand"] is not None else None
+
+        try_fn = lambda: deterministic_sign(sk, aggothernonce, pubkeys, tweaks, is_xonly, msg, rand)
+        assert_raises(exception, try_fn, except_fn)
+
 def test_sig_agg_vectors() -> None:
     with open(os.path.join(sys.path[0], 'sig_agg_vectors.json')) as f:
         test_data = json.load(f)
@@ -791,5 +838,6 @@ if __name__ == '__main__':
     test_nonce_agg_vectors()
     test_sign_verify_vectors()
     test_tweak_vectors()
+    test_det_sign_vectors()
     test_sig_agg_vectors()
     test_sign_and_verify_random(6)
