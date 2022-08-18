@@ -361,6 +361,45 @@ def sign(secnonce: bytes, sk: bytes, session_ctx: SessionContext) -> bytes:
     assert partial_sig_verify_internal(psig, pubnonce, cbytes(P), session_ctx)
     return psig
 
+def det_nonce_hash(sk_: bytes, aggothernonce: bytes, aggpk: bytes, msg: bytes, i: int) -> int:
+    buf = b''
+    buf += sk_
+    buf += aggothernonce
+    buf += aggpk
+    buf += len(msg).to_bytes(8, 'big')
+    buf += msg
+    buf += i.to_bytes(1, 'big')
+    return int_from_bytes(tagged_hash('MuSig/deterministic/nonce', buf))
+
+def deterministic_sign(sk: bytes, aggothernonce: bytes, pubkeys: List[PlainPk], tweaks: List[bytes], is_xonly: List[bool], msg: bytes, rand: Optional[bytes]) -> Tuple[bytes, bytes]:
+    if rand is not None:
+        sk_ = bytes_xor(sk, tagged_hash('MuSig/aux', rand))
+    else:
+        sk_ = sk
+    aggpk = get_xonly_pk(key_agg_and_tweak(pubkeys, tweaks, is_xonly))
+
+    k_1 = det_nonce_hash(sk_, aggothernonce, aggpk, msg, 0)
+    k_2 = det_nonce_hash(sk_, aggothernonce, aggpk, msg, 1)
+    # k_1 == 0 or k_2 == 0 cannot occur except with negligible probability.
+    assert k_1 != 0
+    assert k_2 != 0
+
+    R_1_ = point_mul(G, k_1)
+    R_2_ = point_mul(G, k_2)
+    assert R_1_ is not None
+    assert R_2_ is not None
+    pubnonce = cbytes(R_1_) + cbytes(R_2_)
+    secnonce = bytes_from_int(k_1) + bytes_from_int(k_2)
+    try:
+        aggnonce = nonce_agg([pubnonce, aggothernonce])
+    except Exception:
+        raise InvalidContributionError(None, "aggothernonce")
+    session_ctx = SessionContext(aggnonce, pubkeys, tweaks, is_xonly, msg)
+    psig = sign(secnonce, sk, session_ctx)
+    # Clear the secnonce after use
+    secnonce = bytes(64)
+    return (pubnonce, psig)
+
 def partial_sig_verify(psig: bytes, pubnonces: List[bytes], pubkeys: List[PlainPk], tweaks: List[bytes], is_xonly: List[bool], msg: bytes, i: int) -> bool:
     if len(pubnonces) != len(pubkeys):
         raise ValueError('The `pubnonces` and `pubkeys` arrays must have the same length.')
@@ -711,9 +750,16 @@ def test_sign_and_verify_random(iters: int) -> None:
         # Use a non-repeating counter for extra_in
         secnonce_1, pubnonce_1 = nonce_gen(sk_1, aggpk, msg, i.to_bytes(4, 'big'))
 
-        # Use a clock for extra_in
-        t = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
-        secnonce_2, pubnonce_2 = nonce_gen(sk_2, aggpk, msg, t.to_bytes(8, 'big'))
+        # On even iterations use regular signing algorithm for signer 2,
+        # otherwise use deterministic signing algorithm
+        if i % 2 == 0:
+            # Use a clock for extra_in
+            t = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+            secnonce_2, pubnonce_2 = nonce_gen(sk_2, aggpk, msg, t.to_bytes(8, 'big'))
+        else:
+            aggothernonce = nonce_agg([pubnonce_1])
+            rand = secrets.token_bytes(32)
+            pubnonce_2, psig_2 = deterministic_sign(sk_2, aggothernonce, pubkeys, tweaks, is_xonly, msg, rand)
 
         pubnonces = [pubnonce_1, pubnonce_2]
         aggnonce = nonce_agg(pubnonces)
@@ -730,9 +776,10 @@ def test_sign_and_verify_random(iters: int) -> None:
         # Wrong message
         assert not partial_sig_verify(psig_1, pubnonces, pubkeys, tweaks, is_xonly, secrets.token_bytes(32), 0)
 
-        psig_2 = sign(secnonce_2, sk_2, session_ctx)
-        # Clear the secnonce after use
-        secnonce_2 = bytes(64)
+        if i % 2 == 0:
+            psig_2 = sign(secnonce_2, sk_2, session_ctx)
+            # Clear the secnonce after use
+            secnonce_2 = bytes(64)
         assert partial_sig_verify(psig_2, pubnonces, pubkeys, tweaks, is_xonly, msg, 1)
 
         sig = partial_sig_agg([psig_1, psig_2], session_ctx)
@@ -745,4 +792,4 @@ if __name__ == '__main__':
     test_sign_verify_vectors()
     test_tweak_vectors()
     test_sig_agg_vectors()
-    test_sign_and_verify_random(4)
+    test_sign_and_verify_random(6)
