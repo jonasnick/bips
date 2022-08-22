@@ -434,7 +434,7 @@ Input:
 * Let ''(Q, gacc, _, b, R, e) = GetSessionValues(session_ctx)''; fail if that fails
 * Let ''s = int(psig)''; fail if ''s &ge; n''
 * Let ''R<sub>1,⁎</sub> = cpoint(pubnonce[0:33]), R<sub>2,⁎</sub> = cpoint(pubnonce[33:66])''
-* Let ''R<sub>⁎</sub>' = R<sub>1,∗</sub> + b⋅R<sub>2,⁎</sub>''
+* Let ''R<sub>⁎</sub>' = R<sub>1,⁎</sub> + b⋅R<sub>2,⁎</sub>''
 * Let ''R<sub>⁎</sub> = R<sub>⁎</sub>' '' if ''has_even_y(R)'', otherwise let ''R<sub>⁎</sub> = -R<sub>⁎</sub>' ''
 * Let ''g = 1'' if ''has_even_y(Q)'', otherwise let ''g = -1 mod n''
 * Let ''g' = g⋅gacc mod n''
@@ -557,14 +557,14 @@ when producing a partial signature to ensure that the aggregate signature will c
 
 <poem>
 The ''[[#SigVerify negation|PartialSigVerifyInternal]]'' algorithm is supposed to check
-  ''s⋅G = R<sup>*</sup> + e⋅a⋅d⋅G''.
+  ''s⋅G = R<sub>⁎</sub> + e⋅a⋅d⋅G''.
 </poem>
 
 <poem>
-The verifier doesn't have access to ''d⋅G'', but can construct it using the xonly public key ''pk<sup>*</sup>'' as follows:
+The verifier doesn't have access to ''d⋅G'', but can construct it using the xonly public key ''pk'' as follows:
 ''d⋅G
     = g<sub>v</sub>⋅gacc<sub>v</sub>⋅gp⋅d'⋅G
-    = g<sub>v</sub>⋅gacc<sub>v</sub>⋅point(pk<sup>*</sup>)''
+    = g<sub>v</sub>⋅gacc<sub>v</sub>⋅point(pk)''
 Note that the aggregate public key and list of tweaks are inputs to partial signature verification, so the verifier can also construct ''g<sub>v</sub>'' and ''gacc<sub>v</sub>''.
 </poem>
 
