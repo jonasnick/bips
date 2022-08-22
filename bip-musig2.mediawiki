@@ -431,16 +431,16 @@ Input:
 * Return success iff no failure occurred before reaching this point.
 
 '''''PartialSigVerifyInternal(psig, pubnonce, pk, session_ctx)''''':
-* Let ''(Q, gacc, _, b, R, e) = GetSessionValues(session_ctx)''; fail if that fails
+* Let ''(Q, gacc, _, b, fullR, e) = GetSessionValues(session_ctx)''; fail if that fails
 * Let ''s = int(psig)''; fail if ''s &ge; n''
 * Let ''R<sub>1,⁎</sub> = cpoint(pubnonce[0:33]), R<sub>2,⁎</sub> = cpoint(pubnonce[33:66])''
-* Let ''R<sub>⁎</sub>' = R<sub>1,⁎</sub> + b⋅R<sub>2,⁎</sub>''
-* Let ''R<sub>⁎</sub> = R<sub>⁎</sub>' '' if ''has_even_y(R)'', otherwise let ''R<sub>⁎</sub> = -R<sub>⁎</sub>' ''
+* Let ''R' = R<sub>1,⁎</sub> + b⋅R<sub>2,⁎</sub>''
+* Let ''R = R' '' if ''has_even_y(fullR)'', otherwise let ''R = -R' ''
 * Let ''g = 1'' if ''has_even_y(Q)'', otherwise let ''g = -1 mod n''
 * Let ''g' = g⋅gacc mod n''
 * <div id="SigVerify negation"></div>Let ''P = g'⋅point(pk)''; fail if that fails (See [[#negation-of-the-public-key-when-partially-verifying|Negation Of The Public Key When Partially Verifying]])
 * Let ''a = GetSessionKeyAggCoeff(session_ctx, P)''; fail if that fails
-* Fail if ''s⋅G &ne; R<sub>⁎</sub> + e⋅a⋅P''
+* Fail if ''s⋅G &ne; R + e⋅a⋅P''
 * Return success iff no failure occurred before reaching this point.
 
 ==== Partial Signature Aggregation ====
@@ -556,8 +556,8 @@ when producing a partial signature to ensure that the aggregate signature will c
 </poem>
 
 <poem>
-The ''[[#SigVerify negation|PartialSigVerifyInternal]]'' algorithm is supposed to check
-  ''s⋅G = R<sub>⁎</sub> + e⋅a⋅d⋅G''.
+Given a partial signature ''(R, s)'', the ''[[#SigVerify negation|PartialSigVerifyInternal]]'' algorithm is supposed to check
+  ''s⋅G = R + e⋅a⋅d⋅G''.
 </poem>
 
 <poem>
