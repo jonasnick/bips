@@ -460,14 +460,13 @@ Implementors must avoid modifying the ''NonceGen'' algorithm without being fully
 We provide two modifications that are secure when applied correctly and may be useful in special circumstances, summarized in the following table.
 
 {| class="wikitable" style="margin:auto"
+!                                 !! needs secure randomness !! needs secure counter !! needs to keep state securely !! needs aggregated nonce of all other signers (only possible for one signer)
 |-
-!                       !! needs secure randomness !! needs secure counter !! needs to keep state securely !! needs aggregated nonce of all other signers (only possible for one signer)
+! NonceGen          || ✓      || &nbsp; || ✓      || &nbsp;
 |-
-| NonceGen              || ✓      || &nbsp; || ✓      || &nbsp;
+! CounterNonceGen   || &nbsp; || ✓      || ✓      || &nbsp;
 |-
-| CounterNonceGen       || &nbsp; || ✓      || ✓      || &nbsp;
-|-
-| DeterministicNonceGen || &nbsp; || &nbsp; || &nbsp; || ✓
+! DeterministicSign  test || &nbsp; || &nbsp; || &nbsp; || ✓
 |}
 
 First, on systems where obtaining uniformly random values is much harder than maintaining a global atomic counter, it can be beneficial to modify ''NonceGen''.
