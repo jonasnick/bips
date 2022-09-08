@@ -270,9 +270,9 @@ Internal Algorithm ''HashKeys(pk<sub>1..u</sub>)'':
 
 <div>
 Internal Algorithm ''GetSecondKey(pk<sub>1..u</sub>)'':
-* For ''j = 1 .. u'':
-** If ''pk<sub>j</sub> &ne; pk<sub>1</sub>'':
-*** Return ''pk<sub>j</sub>''
+* For ''i = 1 .. u'':
+** If ''pk<sub>i</sub> &ne; pk<sub>1</sub>'':
+*** Return ''pk<sub>i</sub>''
 * Return ''bytes(33, 0)''
 </div>
 

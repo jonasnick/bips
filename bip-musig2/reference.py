@@ -212,9 +212,9 @@ def hash_keys(pubkeys: List[PlainPk]) -> bytes:
 
 def get_second_key(pubkeys: List[PlainPk]) -> PlainPk:
     u = len(pubkeys)
-    for j in range(1, u):
-        if pubkeys[j] != pubkeys[0]:
-            return pubkeys[j]
+    for i in range(1, u):
+        if pubkeys[i] != pubkeys[0]:
+            return pubkeys[i]
     return PlainPk(b'\x00'*33)
 
 def key_agg_coeff(pubkeys: List[PlainPk], pk_: PlainPk) -> int:
