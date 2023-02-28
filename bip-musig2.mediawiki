@@ -107,9 +107,9 @@ Plain public keys are byte strings of length 33 (often called ''compressed'' for
 In contrast, X-only public keys are 32-byte strings defined in [https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki BIP340].
 
 The individual public keys of signers as input to the key aggregation algorithm ''KeyAgg'' (and to ''GetSessionValues'' and ''PartialSigVerify'') are plain public keys.
-The output of ''KeyAgg'' is a [[#keygen-context|KeyGen Context]] which stores information required for tweaking the aggregate public key (see [[#tweaking-the-aggregate-public-key|below]]),
+The output of ''KeyAgg'' is a [[#keyagg-context|KeyAgg Context]] which stores information required for tweaking the aggregate public key (see [[#tweaking-the-aggregate-public-key|below]]),
 and it can be used to produce an X-only aggregate public key, or a plain aggregate public key.
-In order to obtain an X-only public key compatible with BIP340 verification, implementations call the ''GetXonlyPubkey'' function with the KeyGen Context.
+In order to obtain an X-only public key compatible with BIP340 verification, implementations call the ''GetXonlyPubkey'' function with the KeyAgg Context.
 To get the plain aggregate public key, which is required for some applications of [[#tweaking-the-aggregate-public-key|tweaking]], implementations call ''GetPlainPubkey'' instead.
 
 The aggregate public key produced by ''KeyAgg'' (regardless of the type) depends on the order of the individual public keys.
@@ -184,8 +184,8 @@ However, if ''PartialSigVerify'' succeeds for all partial signatures then ''Part
 === Tweaking the Aggregate Public Key ===
 
 The aggregate public key can be ''tweaked'', which modifies the key as defined in the [[#tweaking-definition|Tweaking Definition]] subsection.
-In order to apply a tweak, the KeyGen Context output by ''KeyAgg'' is provided to the ''ApplyTweak'' algorithm with the ''is_xonly_t'' argument set to false for plain tweaking and true for X-only tweaking.
-The resulting KeyGen Context can be used to apply another tweak with ''ApplyTweak'' or obtain the aggregate public key with ''GetXonlyPubkey'' or ''GetPlainPubkey''.
+In order to apply a tweak, the KeyAgg Context output by ''KeyAgg'' is provided to the ''ApplyTweak'' algorithm with the ''is_xonly_t'' argument set to false for plain tweaking and true for X-only tweaking.
+The resulting KeyAgg Context can be used to apply another tweak with ''ApplyTweak'' or obtain the aggregate public key with ''GetXonlyPubkey'' or ''GetPlainPubkey''.
 
 In addition to individual public keys, the ''KeyAgg'' algorithm accepts tweaks, which modify the aggregate public key as defined in the [[#tweaking-definition|Tweaking Definition]] subsection.
 For example, if ''KeyAgg'' is run with ''v = 2'', ''is_xonly_t<sub>1</sub> = false'', ''is_xonly_t<sub>2</sub> = true'', then the aggregate key is first plain tweaked with ''tweak<sub>1</sub>'' and then X-only tweaked with ''tweak<sub>2</sub>''.
@@ -202,7 +202,7 @@ Plain tweaking can be used to derive child public keys from an aggregate public 
 On the other hand, X-only tweaking is required for Taproot tweaking per [https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki BIP341].
 A Taproot-tweaked public key commits to a ''script path'', allowing users to create transaction outputs that are spendable either with a MuSig2 multi-signature or by providing inputs that satisfy the script path.
 Script path spends require a control block that contains a parity bit for the tweaked X-only public key.
-The bit can be obtained with ''GetPlainPubkey(keygen_ctx)[0] & 1''.
+The bit can be obtained with ''GetPlainPubkey(keyagg_ctx)[0] & 1''.
 
 == Algorithms ==
 
@@ -261,24 +261,24 @@ Algorithm ''IndividualPubkey(sk)'':<ref>The ''IndividualPubkey'' algorithm match
 * Return ''cbytes(d'⋅G)''.
 </div>
 
-==== KeyGen Context ====
+==== KeyAgg Context ====
 
-The KeyGen Context is a data structure consisting of the following elements:
+The KeyAgg Context is a data structure consisting of the following elements:
 * The point ''Q'' representing the potentially tweaked aggregate public key: an elliptic curve point
 * The accumulated tweak ''tacc'': an integer with ''0 &le; tacc < n''
 * The value ''gacc'' : 1 or -1 mod n
 
-We write "Let ''(Q, gacc, tacc) = keygen_ctx''" to assign names to the elements of a KeyGen Context.
+We write "Let ''(Q, gacc, tacc) = keyagg_ctx''" to assign names to the elements of a KeyAgg Context.
 
 <div>
-Algorithm ''GetXonlyPubkey(keygen_ctx)'':
-* Let ''(Q, _, _) = keygen_ctx''
+Algorithm ''GetXonlyPubkey(keyagg_ctx)'':
+* Let ''(Q, _, _) = keyagg_ctx''
 * Return ''xbytes(Q)''
 </div>
 
 <div>
-Algorithm ''GetPlainPubkey(keygen_ctx)'':
-* Let ''(Q, _, _) = keygen_ctx''
+Algorithm ''GetPlainPubkey(keyagg_ctx)'':
+* Let ''(Q, _, _) = keyagg_ctx''
 * Return ''cbytes(Q)''
 </div>
 
@@ -307,7 +307,7 @@ Algorithm ''KeyAgg(pk<sub>1..u</sub>)'':
 * Fail if ''is_infinite(Q)''.
 * Let ''gacc = 1''
 * Let ''tacc = 0''
-* Return ''keygen_ctx = (Q, gacc, tacc)''.
+* Return ''keyagg_ctx = (Q, gacc, tacc)''.
 </div>
 
 <div>
@@ -340,12 +340,12 @@ Internal Algorithm ''KeyAggCoeffInternal(pk<sub>1..u</sub>, pk', pk2)'':
 ==== Applying Tweaks ====
 
 <div>
-Algorithm ''ApplyTweak(keygen_ctx, tweak, is_xonly_t)'':
+Algorithm ''ApplyTweak(keyagg_ctx, tweak, is_xonly_t)'':
 * Inputs:
-** The ''keygen_ctx'': a [[#keygen-context|KeyGen Context]] data structure
+** The ''keyagg_ctx'': a [[#keyagg-context|KeyAgg Context]] data structure
 ** The ''tweak'': a 32-byte array
 ** The tweak mode ''is_xonly_t'': a boolean
-* Let ''(Q, gacc, tacc) = keygen_ctx''
+* Let ''(Q, gacc, tacc) = keyagg_ctx''
 * If ''is_xonly_t'' and ''not has_even_y(Q)'':
 ** Let ''g = -1 mod n''
 * Else:
@@ -355,7 +355,7 @@ Algorithm ''ApplyTweak(keygen_ctx, tweak, is_xonly_t)'':
 ** Fail if ''is_infinite(Q')''
 * Let ''gacc' = g⋅gacc mod n''
 * Let ''tacc' = t + g⋅tacc mod n''
-* Return ''keygen_ctx' = (Q', gacc', tacc')''
+* Return ''keyagg_ctx' = (Q', gacc', tacc')''
 </div>
 
 === Nonce Generation ===
@@ -419,10 +419,10 @@ We write "Let ''(aggnonce, u, pk<sub>1..u</sub>, v, tweak<sub>1..v</sub>, is_xon
 <div>
 Algorithm ''GetSessionValues(session_ctx)'':
 * Let ''(aggnonce, u, pk<sub>1..u</sub>, v, tweak<sub>1..v</sub>, is_xonly_t<sub>1..v</sub>, m) = session_ctx''
-* Let ''keygen_ctx<sub>0</sub> = KeyAgg(pk<sub>1..u</sub>)''; fail if that fails
+* Let ''keyagg_ctx<sub>0</sub> = KeyAgg(pk<sub>1..u</sub>)''; fail if that fails
 * For ''i = 1 .. v'':
-** Let ''keygen_ctx<sub>i</sub> = ApplyTweak(keygen_ctx<sub>i-1</sub>, tweak<sub>i</sub>, is_xonly_t<sub>i</sub>)''; fail if that fails
-* Let ''(Q, gacc, tacc) = keygen_ctx<sub>v</sub>''
+** Let ''keyagg_ctx<sub>i</sub> = ApplyTweak(keyagg_ctx<sub>i-1</sub>, tweak<sub>i</sub>, is_xonly_t<sub>i</sub>)''; fail if that fails
+* Let ''(Q, gacc, tacc) = keyagg_ctx<sub>v</sub>''
 * Let ''b = int(hash<sub>MuSig/noncecoef</sub>(aggnonce || xbytes(Q) || m)) mod n''
 * Let ''R<sub>1</sub> = cpoint_ext(aggnonce[0:33]), R<sub>2</sub> = cpoint_ext(aggnonce[33:66])''; fail if that fails and blame nonce aggregator for invalid ''aggnonce''.
 * Let ''R' = R<sub>1</sub> + b⋅R<sub>2</sub>''
@@ -615,10 +615,10 @@ Algorithm ''DeterministicSign(sk, aggothernonce, pk<sub>1..u</sub>, tweak<sub>1.
 ** Let ''sk' '' be the byte-wise xor of ''sk'' and ''hash<sub>MuSig/aux</sub>(rand)''
 * Else:
 ** Let ''sk' = sk''
-* Let ''keygen_ctx<sub>0</sub> = KeyAgg(pk<sub>1..u</sub>)''; fail if that fails
+* Let ''keyagg_ctx<sub>0</sub> = KeyAgg(pk<sub>1..u</sub>)''; fail if that fails
 * For ''i = 1 .. v'':
-** Let ''keygen_ctx<sub>i</sub> = ApplyTweak(keygen_ctx<sub>i-1</sub>, tweak<sub>i</sub>, is_xonly_t<sub>i</sub>)''; fail if that fails
-* Let ''aggpk = GetPubkey(keygen_ctx<sub>v</sub>)''
+** Let ''keyagg_ctx<sub>i</sub> = ApplyTweak(keyagg_ctx<sub>i-1</sub>, tweak<sub>i</sub>, is_xonly_t<sub>i</sub>)''; fail if that fails
+* Let ''aggpk = GetPubkey(keyagg_ctx<sub>v</sub>)''
 * Let ''k<sub>i</sub> = int(hash<sub>MuSig/deterministic/nonce</sub>(sk' || aggothernonce || aggpk || bytes(8, len(m)) || m || bytes(1, i - 1))) mod n'' for ''i = 1,2''
 * Fail if ''k<sub>1</sub> = 0'' or ''k<sub>2</sub> = 0''
 * Let ''R<sub>⁎,1</sub> = k<sub>1</sub>⋅G, R<sub>⁎,2</sub> = k<sub>2</sub>⋅G''
@@ -781,6 +781,7 @@ The <code>PATCH</code> version is incremented for other changes that are notewor
 ** Fix invalid length of a ''pubnonce'' in the ''PartialSigVerify'' test vectors.
 ** Improve ''KeySort'' test vector.
 ** Add explicit ''IndividualPubkey'' algorithm.
+** Rename KeyGen Context to KeyAgg Context.
 * '''1.0.0-rc.2''' (2022-10-28):
 ** Fix vulnerability that can occur in certain unusual scenarios (see [https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2022-October/021000.html bitcoin-dev mailing list]: Add mandatory ''pk'' argument to ''NonceGen'', append ''pk'' to ''secnonce'' and check in ''Sign'' that the ''pk'' in ''secnonce'' matches. Update test vectors.
 ** Make sure that signer's key is in list of individual public keys by adding failure case to ''GetSessionKeyAggCoeff'' and add test vectors.

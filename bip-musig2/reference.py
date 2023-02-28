@@ -182,15 +182,15 @@ def key_sort(pubkeys: List[PlainPk]) -> List[PlainPk]:
     pubkeys.sort()
     return pubkeys
 
-KeyGenContext = NamedTuple('KeyGenContext', [('Q', Point),
+KeyAggContext = NamedTuple('KeyAggContext', [('Q', Point),
                                              ('gacc', int),
                                              ('tacc', int)])
 
-def get_xonly_pk(keygen_ctx: KeyGenContext) -> XonlyPk:
-    Q, _, _ = keygen_ctx
+def get_xonly_pk(keyagg_ctx: KeyAggContext) -> XonlyPk:
+    Q, _, _ = keyagg_ctx
     return XonlyPk(xbytes(Q))
 
-def key_agg(pubkeys: List[PlainPk]) -> KeyGenContext:
+def key_agg(pubkeys: List[PlainPk]) -> KeyAggContext:
     pk2 = get_second_key(pubkeys)
     u = len(pubkeys)
     Q = infinity
@@ -205,7 +205,7 @@ def key_agg(pubkeys: List[PlainPk]) -> KeyGenContext:
     assert(Q is not None)
     gacc = 1
     tacc = 0
-    return KeyGenContext(Q, gacc, tacc)
+    return KeyAggContext(Q, gacc, tacc)
 
 def hash_keys(pubkeys: List[PlainPk]) -> bytes:
     return tagged_hash('KeyAgg list', b''.join(pubkeys))
@@ -227,10 +227,10 @@ def key_agg_coeff_internal(pubkeys: List[PlainPk], pk_: PlainPk, pk2: PlainPk) -
         return 1
     return int_from_bytes(tagged_hash('KeyAgg coefficient', L + pk_)) % n
 
-def apply_tweak(keygen_ctx: KeyGenContext, tweak: bytes, is_xonly: bool) -> KeyGenContext:
+def apply_tweak(keyagg_ctx: KeyAggContext, tweak: bytes, is_xonly: bool) -> KeyAggContext:
     if len(tweak) != 32:
         raise ValueError('The tweak must be a 32-byte array.')
-    Q, gacc, tacc = keygen_ctx
+    Q, gacc, tacc = keyagg_ctx
     if is_xonly and not has_even_y(Q):
         g = n - 1
     else:
@@ -243,7 +243,7 @@ def apply_tweak(keygen_ctx: KeyGenContext, tweak: bytes, is_xonly: bool) -> KeyG
         raise ValueError('The result of tweaking cannot be infinity.')
     gacc_ = g * gacc % n
     tacc_ = (t + g * tacc) % n
-    return KeyGenContext(Q_, gacc_, tacc_)
+    return KeyAggContext(Q_, gacc_, tacc_)
 
 def bytes_xor(a: bytes, b: bytes) -> bytes:
     return bytes(x ^ y for x, y in zip(a, b))
@@ -320,11 +320,11 @@ SessionContext = NamedTuple('SessionContext', [('aggnonce', bytes),
 def key_agg_and_tweak(pubkeys: List[PlainPk], tweaks: List[bytes], is_xonly: List[bool]):
     if len(tweaks) != len(is_xonly):
         raise ValueError('The `tweaks` and `is_xonly` arrays must have the same length.')
-    keygen_ctx = key_agg(pubkeys)
+    keyagg_ctx = key_agg(pubkeys)
     v = len(tweaks)
     for i in range(v):
-        keygen_ctx = apply_tweak(keygen_ctx, tweaks[i], is_xonly[i])
-    return keygen_ctx
+        keyagg_ctx = apply_tweak(keyagg_ctx, tweaks[i], is_xonly[i])
+    return keyagg_ctx
 
 def get_session_values(session_ctx: SessionContext) -> Tuple[Point, int, int, int, Point, int]:
     (aggnonce, pubkeys, tweaks, is_xonly, msg) = session_ctx
